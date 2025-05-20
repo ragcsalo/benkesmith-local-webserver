@@ -1,7 +1,7 @@
 {
   "name": "benkesmith-local-webserver",
   "version": "1.0.0",
-  "description": "A Cordova plugin for creating a local webserver.",
+  "description": "A Cordova plugin for creating a local webserver on the phone, and communicating with other apps.",
   "cordova": {
     "id": "benkesmith-local-webserver",
     "platforms": [
@@ -21,7 +21,7 @@
     "plugin"
   ],
   "author": "Benke Smith <benke.smith@gmail.com>",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "engines": [
     {
       "name": "cordova",

@@ -2,7 +2,7 @@
 <plugin id="benkesmith-local-webserver" xmlns="http://apache.org/cordova/ns/plugins/1.0" version="1.0.0">
     <name>Local WEBserver</name>
     <description>A Cordova plugin for creating a local webserver on the phone, and communicating with other apps.</description>
-    <license>Apache 2.0</license>
+    <license>MIT</license>
 	<keywords>cordova,webserver,socket,local</keywords>
     
 	<js-module src="www/LocalWebserver.js" name="LocalWebserver">
@@ -12,7 +12,7 @@
     <platform name="android">
         <config-file target="res/xml/config.xml" parent="/*">
             <feature name="LocalWebserver">
-                <param name="android-package" value="com.benkesmith.localwebserver" />
+                <param name="android-package" value="com.benkesmith.localwebserver.LocalWebserver" />
             </feature>
         </config-file>
         <framework src="com.github.nanohttpd:nanohttpd:2.3.1" type="gradleReference" />

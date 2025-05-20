@@ -7,15 +7,20 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import fi.iki.elonen.NanoHTTPD;
+import fi.iki.elonen.NanoHTTPD.IHTTPSession;
+import fi.iki.elonen.NanoHTTPD.Response;
+import fi.iki.elonen.NanoHTTPD.Response.IStatus;
+
+import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import fi.iki.elonen.NanoHTTPD;
-
 public class LocalWebserver extends CordovaPlugin {
+
     private NanoHTTPD server;
     private CallbackContext requestCallback;
     private Map<String, HttpRequest> pendingRequests = new ConcurrentHashMap<>();
@@ -35,82 +40,87 @@ public class LocalWebserver extends CordovaPlugin {
                 return true;
             case "sendResponse":
                 String requestId = args.getString(0);
-                JSONObject resp = args.getJSONObject(1);
-                sendResponse(requestId, resp, callbackContext);
+                JSONObject response = args.getJSONObject(1);
+                sendResponse(requestId, response, callbackContext);
                 return true;
             default:
                 return false;
         }
     }
 
-    private void startServer(int port, CallbackContext callbackContext) {
+    private void startServer(int port, CallbackContext callback) {
         try {
             server = new NanoHTTPD(port) {
                 @Override
                 public Response serve(IHTTPSession session) {
-                    try {
-                        String id = UUID.randomUUID().toString();
-                        HttpRequest req = new HttpRequest(session, id);
-                        pendingRequests.put(id, req);
-                        // notify JS
-                        if (requestCallback != null) {
-                            PluginResult pr = new PluginResult(PluginResult.Status.OK, req.toJSON());
-                            pr.setKeepCallback(true);
-                            requestCallback.sendPluginResult(pr);
+                    String id = UUID.randomUUID().toString();
+                    HttpRequest req = new HttpRequest(session, id);
+                    pendingRequests.put(id, req);
+
+                    if (requestCallback != null) {
+                        try {
+                            PluginResult result = new PluginResult(PluginResult.Status.OK, req.toJSON());
+                            result.setKeepCallback(true);
+                            requestCallback.sendPluginResult(result);
+                        } catch (JSONException e) {
+                            e.printStackTrace();
                         }
-                        // wait for JS response
-                        if (req.latch.await(30, TimeUnit.SECONDS)) {
-                            return NanoHTTPD.newFixedLengthResponse(
-                                req.responseStatus,
-                                req.responseHeaders.optString("Content-Type", "text/plain"),
-                                req.responseBody
-                            );
+                    }
+
+                    try {
+                        boolean gotResponse = req.latch.await(30, TimeUnit.SECONDS);
+                        if (gotResponse) {
+                            IStatus status = req.responseStatus != null ? req.responseStatus : Response.Status.OK;
+                            String mime = (req.responseHeaders != null && req.responseHeaders.has("Content-Type"))
+                                    ? req.responseHeaders.optString("Content-Type")
+                                    : "text/plain";
+                            return NanoHTTPD.newFixedLengthResponse(status, mime, req.responseBody != null ? req.responseBody : "");
                         } else {
                             return NanoHTTPD.newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", "Timeout");
                         }
-                    } catch (Exception e) {
+                    } catch (InterruptedException e) {
                         return NanoHTTPD.newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", e.getMessage());
                     }
                 }
             };
             server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
-            callbackContext.success("Server started on port " + port);
-        } catch (Exception e) {
-            callbackContext.error(e.getMessage());
+            callback.success("Server started on port " + port);
+        } catch (IOException e) {
+            callback.error("Failed to start server: " + e.getMessage());
         }
     }
 
-    private void stopServer(CallbackContext callbackContext) {
+    private void stopServer(CallbackContext callback) {
         if (server != null) {
             server.stop();
             pendingRequests.clear();
-            callbackContext.success("Server stopped");
+            callback.success("Server stopped");
         } else {
-            callbackContext.error("Server not running");
+            callback.error("Server not running");
         }
     }
 
-    private void onRequest(CallbackContext callbackContext) {
-        this.requestCallback = callbackContext;
+    private void onRequest(CallbackContext callback) {
+        this.requestCallback = callback;
         PluginResult result = new PluginResult(PluginResult.Status.NO_RESULT);
         result.setKeepCallback(true);
-        callbackContext.sendPluginResult(result);
+        callback.sendPluginResult(result);
     }
 
-    private void sendResponse(String requestId, JSONObject response, CallbackContext callbackContext) {
+    private void sendResponse(String requestId, JSONObject response, CallbackContext callback) {
         HttpRequest req = pendingRequests.remove(requestId);
         if (req != null) {
             try {
                 req.responseStatus = Response.Status.lookup(response.getInt("status"));
                 req.responseHeaders = response.optJSONObject("headers");
-                req.responseBody = response.getString("body");
+                req.responseBody = response.optString("body");
                 req.latch.countDown();
-                callbackContext.success("Response sent for " + requestId);
-            } catch (Exception e) {
-                callbackContext.error(e.getMessage());
+                callback.success("Response sent for " + requestId);
+            } catch (JSONException e) {
+                callback.error("Invalid response JSON: " + e.getMessage());
             }
         } else {
-            callbackContext.error("Invalid requestId");
+            callback.error("Invalid requestId: " + requestId);
         }
     }
 
@@ -118,7 +128,7 @@ public class LocalWebserver extends CordovaPlugin {
         final IHTTPSession session;
         final String id;
         final CountDownLatch latch = new CountDownLatch(1);
-        int responseStatus;
+        IStatus responseStatus;
         JSONObject responseHeaders;
         String responseBody;
 
