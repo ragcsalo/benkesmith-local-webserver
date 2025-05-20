@@ -25,7 +25,12 @@
                 <param name="ios-package" value="LocalWebserver" />
             </feature>
         </config-file>
-		<source-file src="src/ios/LocalWebserver.h" />
-		<source-file src="src/ios/LocalWebserver.m" />
+	<source-file src="src/ios/LocalWebserver.h" />
+	<source-file src="src/ios/LocalWebserver.m" />
+	<podspec>
+	  <pods use-frameworks="true">
+	    <pod name="GCDWebServer" spec="~> 3.5.4" />
+	  </pods>
+	</podspec>    
     </platform>
 </plugin>
