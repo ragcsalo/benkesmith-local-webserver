@@ -15,7 +15,8 @@
                 <param name="android-package" value="com.benkesmith.localwebserver" />
             </feature>
         </config-file>
-        <source-file src="src/android/LocalWebserver.java" target-dir="src/com/benkesmith/localwebserver"/>
+        <framework src="com.github.nanohttpd:nanohttpd:2.3.1" type="gradleReference" />
+		<source-file src="src/android/LocalWebserver.java" target-dir="src/com/benkesmith/localwebserver"/>
     </platform>
 
     <platform name="ios">
