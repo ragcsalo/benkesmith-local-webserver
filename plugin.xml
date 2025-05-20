@@ -27,10 +27,6 @@
         </config-file>
 	<source-file src="src/ios/LocalWebserver.h" />
 	<source-file src="src/ios/LocalWebserver.m" />
-	<podspec>
-	  <pods use-frameworks="true">
-	    <pod name="GCDWebServer" spec="~> 3.5.4" />
-	  </pods>
-	</podspec>    
+	<framework src="GCDWebServer" type="podspec" spec="~> 3.5.4" />    
     </platform>
 </plugin>
