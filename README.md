@@ -11,7 +11,9 @@ com.benkesmith.localwebserver
 
 ## Installation
 
-`cordova plugin add https://github.com/ragcsalo/benkesmith-local-webserver`
+```
+cordova plugin add https://github.com/ragcsalo/benkesmith-local-webserver
+```
 
 ## API
 
