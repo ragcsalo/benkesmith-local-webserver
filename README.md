@@ -15,6 +15,27 @@ com.benkesmith.localwebserver
 cordova plugin add https://github.com/ragcsalo/benkesmith-local-webserver
 ```
 
+### Optional: Allow file URL access in WebView
+
+To enable your local webserver to access files via `file://` and `http://localhost`, you may need to patch the `WebView` settings in your `MainActivity.java`.
+
+Add the following method to your `MainActivity` class:
+
+```java
+@Override
+protected void onStart() {
+    super.onStart();
+
+    if (this.appView != null) {
+        WebView webView = (WebView) this.appView.getView();
+        webView.getSettings().setAllowUniversalAccessFromFileURLs(true);
+        webView.getSettings().setAllowFileAccessFromFileURLs(true);
+        Log.d("LocalWebserver", "WebView settings patched");
+    } else {
+        Log.w("LocalWebserver", "appView is null in onStart()");
+    }
+}
+
 ## API
 
 ### `LocalWebserver.start(port, success, error)`
