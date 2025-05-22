@@ -3,10 +3,12 @@
 #import "GCDWebServerDataRequest.h"
 #import "GCDWebServerDataResponse.h"
 
+@class RequestWrapper;
+
 @interface LocalWebserver : CDVPlugin {
     GCDWebServer* webServer;
     NSString* requestCallbackId;
-    NSMutableDictionary<NSString*, NSMutableDictionary*>* pendingRequests;
+    NSMutableDictionary<NSString*, RequestWrapper*>* pendingRequests;
 }
 
 - (void)start:(CDVInvokedUrlCommand*)command;
@@ -15,4 +17,3 @@
 - (void)sendResponse:(CDVInvokedUrlCommand*)command;
 
 @end
-
