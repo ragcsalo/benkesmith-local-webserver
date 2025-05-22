@@ -15,3 +15,4 @@
 - (void)sendResponse:(CDVInvokedUrlCommand*)command;
 
 @end
+
