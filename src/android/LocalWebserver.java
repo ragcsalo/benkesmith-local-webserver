@@ -13,6 +13,7 @@ import fi.iki.elonen.NanoHTTPD.Response;
 import fi.iki.elonen.NanoHTTPD.Response.IStatus;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -84,7 +85,9 @@ public class LocalWebserver extends CordovaPlugin {
                 }
             };
             server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
-            callback.success("Server started on port " + port);
+
+            String ip = getLocalIpAddress();
+            callback.success(ip + ":" + port);
         } catch (IOException e) {
             callback.error("Failed to start server: " + e.getMessage());
         }
@@ -138,12 +141,43 @@ public class LocalWebserver extends CordovaPlugin {
         }
 
         JSONObject toJSON() throws JSONException {
+            NanoHTTPD.Method method = session.getMethod();
+            String bodyString = "";
+            if (NanoHTTPD.Method.POST.equals(method) || NanoHTTPD.Method.PUT.equals(method)) {
+                try {
+                    session.parseBody(new HashMap<>());
+                    bodyString = session.getQueryParameterString();
+                } catch (Exception e) {
+                    bodyString = "";
+                }
+            }
             JSONObject obj = new JSONObject();
             obj.put("requestId", id);
+            obj.put("headers", session.getHeaders());
+            obj.put("address", session.getRemoteIpAddress());
             obj.put("method", session.getMethod().name());
             obj.put("path", session.getUri());
             obj.put("query", session.getQueryParameterString());
+            obj.put("body", bodyString);
             return obj;
         }
     }
+
+    private String getLocalIpAddress() {
+        try {
+            for (java.util.Enumeration<java.net.NetworkInterface> en = java.net.NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
+                java.net.NetworkInterface intf = en.nextElement();
+                for (java.util.Enumeration<java.net.InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+                    java.net.InetAddress inetAddress = enumIpAddr.nextElement();
+                    if (!inetAddress.isLoopbackAddress() && inetAddress instanceof java.net.Inet4Address) {
+                        return inetAddress.getHostAddress();
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return "127.0.0.1";
+    }
+
 }
