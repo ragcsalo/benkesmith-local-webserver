@@ -31,32 +31,32 @@
 	
 	<framework src="GCDWebServer" type="podspec" spec="~> 3.5.4" />   
 	
-	<edit-config target="NSAppTransportSecurity" file="*-Info.plist" mode="merge">
-	  <dict>
-	    <key>NSAllowsArbitraryLoads</key>
-	    <true/>
-	    <key>NSExceptionDomains</key>
+	<config-file target="*-Info.plist" parent="NSAppTransportSecurity">
 	    <dict>
-	      <key>localhost</key>
-	      <dict>
-	        <key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
+	        <key>NSAllowsArbitraryLoads</key>
 	        <true/>
-	        <key>NSTemporaryExceptionMinimumTLSVersion</key>
-	        <string>TLSv1.0</string>
-	      </dict>
+	        <key>NSExceptionDomains</key>
+	        <dict>
+	            <key>localhost</key>
+	            <dict>
+	                <key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
+	                <true/>
+	                <key>NSTemporaryExceptionMinimumTLSVersion</key>
+	                <string>TLSv1.0</string>
+	            </dict>
+	        </dict>
 	    </dict>
-	  </dict>
-	</edit-config>
+	</config-file>
 	
-	<edit-config target="NSLocalNetworkUsageDescription" file="*-Info.plist" mode="merge">
-	  <string>This app needs local network access for communication.</string>
-	</edit-config>
+	<config-file target="*-Info.plist" parent="NSLocalNetworkUsageDescription">
+	    <string>This app needs local network access for communication.</string>
+	</config-file>
 	
-	<edit-config target="NSBonjourServices" file="*-Info.plist" mode="merge">
-	  <array>
-	    <string>_http._tcp</string>
-	  </array>
-	</edit-config>
+	<config-file target="*-Info.plist" parent="NSBonjourServices">
+	    <array>
+	        <string>_http._tcp</string>
+	    </array>
+	</config-file>
 	    
     </platform>
 </plugin>
