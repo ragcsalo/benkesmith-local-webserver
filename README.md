@@ -35,6 +35,7 @@ protected void onStart() {
         Log.w("LocalWebserver", "appView is null in onStart()");
     }
 }
+```
 
 ## API
 
