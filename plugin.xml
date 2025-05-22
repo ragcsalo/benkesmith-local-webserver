@@ -29,7 +29,7 @@
 	<source-file src="src/ios/LocalWebserver.h" />
 	<source-file src="src/ios/LocalWebserver.m" />
 	
-	<framework src="GCDWebServer" type="podspec" spec="~> 3.5.4" />   
+	<podspec name="GCDWebServer" spec="~> 3.5.4" />   
 	
 	<config-file target="*-Info.plist" parent="NSAppTransportSecurity">
 	    <dict>
