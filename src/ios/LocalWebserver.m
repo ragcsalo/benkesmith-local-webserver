@@ -1,4 +1,7 @@
 #import "LocalWebserver.h"
+#import <ifaddrs.h>
+#import <arpa/inet.h>
+
 
 @implementation LocalWebserver
 
@@ -9,7 +12,8 @@
 - (void)start:(CDVInvokedUrlCommand*)command {
     NSInteger port = [command.arguments[0] integerValue];
     webServer = [[GCDWebServer alloc] init];
-    __weak typeof(self) weakSelf = self;
+    __weak __typeof(self) weakSelf = self;
+
     [webServer addDefaultHandlerForMethod:@"GET"
                               requestClass:[GCDWebServerDataRequest class]
                               processBlock:^GCDWebServerResponse*(GCDWebServerRequest* request) {
@@ -32,7 +36,9 @@
         dispatch_semaphore_t sem = wrapper[@"semaphore"];
         long result = dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 30 * NSEC_PER_SEC));
         if (result != 0) {
-            return [GCDWebServerDataResponse responseWithStatusCode:500 text:@"Timeout waiting for response"];
+            GCDWebServerDataResponse* timeoutResp = [GCDWebServerDataResponse responseWithText:@"Timeout waiting for response"];
+            timeoutResp.statusCode = 500;
+            return timeoutResp;
         }
         NSDictionary* resp = wrapper[@"response"];
         NSInteger status = [resp[@"status"] integerValue];
@@ -45,9 +51,39 @@
         }];
         return responseObj;
     }];
-    [webServer startWithPort:port bonjourName:nil];
-    CDVPluginResult* res = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:[NSString stringWithFormat:@"Server started on port %ld", (long)port]];
-    [self.commandDelegate sendPluginResult:res callbackId:command.callbackId];
+    [self->webServer startWithOptions:@{
+      GCDWebServerOption_Port: @(port),
+      GCDWebServerOption_BindToLocalhost: @NO,
+      GCDWebServerOption_AutomaticallySuspendInBackground: @NO
+    } error:nil];
+
+    NSString* ip = [self getWiFiAddress];
+    NSString* resultString = [NSString stringWithFormat:@"%@:%ld", ip, (long)port];
+    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:resultString];
+
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
+
+- (NSString *)getWiFiAddress {
+    NSString *address = @"127.0.0.1";
+    struct ifaddrs *interfaces = NULL;
+    struct ifaddrs *temp_addr = NULL;
+    int success = getifaddrs(&interfaces);
+    if (success == 0) {
+        temp_addr = interfaces;
+        while (temp_addr != NULL) {
+            if (temp_addr->ifa_addr->sa_family == AF_INET) {
+                NSString* ifaName = [NSString stringWithUTF8String:temp_addr->ifa_name];
+                if ([ifaName isEqualToString:@"en0"] || [ifaName hasPrefix:@"bridge"] || [ifaName hasPrefix:@"pdp_ip"]) {
+                    address = [NSString stringWithUTF8String:inet_ntoa(((struct sockaddr_in *)temp_addr->ifa_addr)->sin_addr)];
+                    break;
+                }
+            }
+            temp_addr = temp_addr->ifa_next;
+        }
+    }
+    freeifaddrs(interfaces);
+    return address;
 }
 
 - (void)stop:(CDVInvokedUrlCommand*)command {
