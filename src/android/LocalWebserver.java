@@ -145,8 +145,14 @@ public class LocalWebserver extends CordovaPlugin {
             String bodyString = "";
             if (NanoHTTPD.Method.POST.equals(method) || NanoHTTPD.Method.PUT.equals(method)) {
                 try {
-                    session.parseBody(new HashMap<>());
-                    bodyString = session.getQueryParameterString();
+                    Map<String, String> body = new HashMap<>();
+                    session.parseBody(body);
+
+                    // Check for raw body content
+                    bodyString = body.get("postData");
+                    if (bodyString == null) {
+                        bodyString = ""; // fallback
+                    }
                 } catch (Exception e) {
                     bodyString = "";
                 }
