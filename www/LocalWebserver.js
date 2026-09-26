@@ -15,6 +15,14 @@ var LocalWebserver = {
 
   sendResponse: function (requestId, response, successCallback, errorCallback) {
     exec(successCallback, errorCallback, 'LocalWebserver', 'sendResponse', [requestId, response]);
+  },
+
+  sendTcpImage: function (ip, port, base64Image, successCallback, errorCallback) {
+    exec(successCallback, errorCallback, 'LocalWebserver', 'sendTcpImage', [ip, port, base64Image]);
+  },
+
+  discoverBoard: function (successCallback, errorCallback) {
+    exec(successCallback, errorCallback, 'LocalWebserver', 'discoverBoard', []);
   }
 };
 
