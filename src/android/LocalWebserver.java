@@ -44,9 +44,106 @@ public class LocalWebserver extends CordovaPlugin {
                 JSONObject response = args.getJSONObject(1);
                 sendResponse(requestId, response, callbackContext);
                 return true;
+            case "sendTcpImage":
+                String tcpIp = args.getString(0);
+                int tcpPort = args.getInt(1);
+                String base64Image = args.getString(2);
+                sendTcpImage(tcpIp, tcpPort, base64Image, callbackContext);
+                return true;
+            case "discoverBoard":
+                discoverBoard(callbackContext);
+                return true;
             default:
                 return false;
         }
+    }
+
+    // UDP discovery of a RealBoard on the local network - broadcasts "DRAWING_APP_DISCOVERY" on
+    // port 8889 and waits (2s) for a unicast "DRAWING_APP_SERVER:<tcpPort>" reply. See
+    // docs/RealBoard_WiFi_Protocol.md §3. Known to be unreliable on some phone hotspots (broadcast
+    // doesn't always propagate) - callers should fall back to a manually-entered IP on failure.
+    private static final int REALBOARD_DISCOVERY_PORT = 8889;
+    private static final String REALBOARD_DISCOVERY_MESSAGE = "DRAWING_APP_DISCOVERY";
+    private static final String REALBOARD_SERVER_IDENTIFIER = "DRAWING_APP_SERVER";
+
+    private void discoverBoard(final CallbackContext callback) {
+        cordova.getThreadPool().execute(new Runnable() {
+            @Override
+            public void run() {
+                java.net.DatagramSocket socket = null;
+                try {
+                    socket = new java.net.DatagramSocket();
+                    socket.setBroadcast(true);
+                    socket.setReuseAddress(true);
+                    socket.setSoTimeout(2000);
+
+                    byte[] sendData = REALBOARD_DISCOVERY_MESSAGE.getBytes("UTF-8");
+                    java.net.DatagramPacket sendPacket = new java.net.DatagramPacket(
+                            sendData, sendData.length,
+                            java.net.InetAddress.getByName("255.255.255.255"), REALBOARD_DISCOVERY_PORT);
+                    socket.send(sendPacket);
+
+                    byte[] recvBuf = new byte[1024];
+                    java.net.DatagramPacket recvPacket = new java.net.DatagramPacket(recvBuf, recvBuf.length);
+                    socket.receive(recvPacket);
+
+                    String reply = new String(recvPacket.getData(), 0, recvPacket.getLength(), "UTF-8");
+                    String[] parts = reply.split(":");
+                    if (parts.length == 2 && parts[0].equals(REALBOARD_SERVER_IDENTIFIER)) {
+                        JSONObject result = new JSONObject();
+                        result.put("ip", recvPacket.getAddress().getHostAddress());
+                        result.put("port", Integer.parseInt(parts[1].trim()));
+                        callback.success(result);
+                    } else {
+                        callback.error("Unexpected discovery reply: " + reply);
+                    }
+                } catch (java.net.SocketTimeoutException e) {
+                    callback.error("Discovery timed out - no board responded");
+                } catch (Exception e) {
+                    callback.error("Discovery failed: " + e.getMessage());
+                } finally {
+                    if (socket != null) socket.close();
+                }
+            }
+        });
+    }
+
+    // Outbound raw TCP client (not the NanoHTTPD server above): connects out to a device
+    // speaking the RealBoard wire protocol - 4-byte big-endian length header, then the raw
+    // JPEG bytes, then a single ACK text line ("IMAGE_RECEIVED\n") read back on the same
+    // socket. See docs/RealBoard_WiFi_Protocol.md. Runs off the WebView thread since it's
+    // blocking network I/O.
+    private void sendTcpImage(final String ip, final int port, final String base64Image, final CallbackContext callback) {
+        cordova.getThreadPool().execute(new Runnable() {
+            @Override
+            public void run() {
+                java.net.Socket socket = null;
+                try {
+                    byte[] imageBytes = android.util.Base64.decode(base64Image, android.util.Base64.NO_WRAP);
+
+                    socket = new java.net.Socket();
+                    socket.connect(new java.net.InetSocketAddress(ip, port), 5000);
+                    socket.setSoTimeout(15000);
+
+                    java.io.DataOutputStream out = new java.io.DataOutputStream(socket.getOutputStream());
+                    out.writeInt(imageBytes.length);
+                    out.write(imageBytes);
+                    out.flush();
+
+                    java.io.BufferedReader in = new java.io.BufferedReader(
+                            new java.io.InputStreamReader(socket.getInputStream(), "UTF-8"));
+                    String ack = in.readLine();
+
+                    callback.success(ack != null ? ack : "");
+                } catch (Exception e) {
+                    callback.error("TCP send failed: " + e.getMessage());
+                } finally {
+                    if (socket != null) {
+                        try { socket.close(); } catch (Exception ignored) {}
+                    }
+                }
+            }
+        });
     }
 
     private void startServer(int port, CallbackContext callback) {
@@ -169,21 +266,42 @@ public class LocalWebserver extends CordovaPlugin {
         }
     }
 
+    // Which network interface the server's address comes from: wlan* (Wi-Fi) first, then this phone's
+    // own hotspot (swlan* / ap* / softap* - the other phones join it over Wi-Fi). NEVER cellular
+    // (rmnet* / ccmni* ...), VPN or anything else: other phones can't reach those. -1 = not a candidate.
+    // Taking the FIRST non-loopback address returned the cellular one while the phone was on Wi-Fi
+    // (rmnet_data* is usually listed before wlan0).
+    private int interfacePriority(java.net.NetworkInterface intf) {
+        String name = intf.getName() != null ? intf.getName().toLowerCase() : "";
+        if (name.startsWith("wlan")) return 0;
+        if (name.startsWith("swlan") || name.startsWith("ap") || name.startsWith("softap")) return 1;
+        return -1;
+    }
+
+    // The Wi-Fi (or own hotspot) address; 127.0.0.1 if there is none - the app then shows
+    // "please connect to a Wi-Fi network" instead of an address (websocket.js).
     private String getLocalIpAddress() {
+        String best = "127.0.0.1";
+        int bestPriority = 99;
         try {
             for (java.util.Enumeration<java.net.NetworkInterface> en = java.net.NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
                 java.net.NetworkInterface intf = en.nextElement();
+                if (!intf.isUp() || intf.isLoopback()) continue;
+                int priority = interfacePriority(intf);
+                if (priority < 0 || priority >= bestPriority) continue;
                 for (java.util.Enumeration<java.net.InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
                     java.net.InetAddress inetAddress = enumIpAddr.nextElement();
-                    if (!inetAddress.isLoopbackAddress() && inetAddress instanceof java.net.Inet4Address) {
-                        return inetAddress.getHostAddress();
+                    if (inetAddress instanceof java.net.Inet4Address && !inetAddress.isLinkLocalAddress()) {
+                        best = inetAddress.getHostAddress();
+                        bestPriority = priority;
+                        break;
                     }
                 }
             }
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return "127.0.0.1";
+        return best;
     }
 
 }
