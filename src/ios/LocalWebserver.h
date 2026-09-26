@@ -15,5 +15,7 @@
 - (void)stop:(CDVInvokedUrlCommand*)command;
 - (void)onRequest:(CDVInvokedUrlCommand*)command;
 - (void)sendResponse:(CDVInvokedUrlCommand*)command;
+- (void)sendTcpImage:(CDVInvokedUrlCommand*)command;
+- (void)discoverBoard:(CDVInvokedUrlCommand*)command;
 
 @end
