@@ -2,7 +2,7 @@
 <plugin id="benkesmith-local-webserver" xmlns="http://apache.org/cordova/ns/plugins/1.0" version="1.0.0">
     <name>Local WEBserver</name>
     <description>A Cordova plugin for creating a local webserver on the phone, and communicating with other apps.</description>
-    <license>MIT</license>
+    <license>Apache 2.0</license>
 	<keywords>cordova,webserver,socket,local</keywords>
     
 	<js-module src="www/LocalWebserver.js" name="LocalWebserver">
@@ -15,8 +15,8 @@
                 <param name="android-package" value="com.benkesmith.localwebserver.LocalWebserver" />
             </feature>
         </config-file>
-        <framework src="org.nanohttpd:nanohttpd:2.3.1" type="gradleReference" />
-	<source-file src="src/android/LocalWebserver.java" target-dir="src/com/benkesmith/localwebserver"/>
+        <source-file src="src/android/LocalWebserver.java" target-dir="src/com/benkesmith/localwebserver"/>
+        <framework src="org.nanohttpd:nanohttpd:2.3.1" />
     </platform>
 
     <platform name="ios">
@@ -25,38 +25,7 @@
                 <param name="ios-package" value="LocalWebserver" />
             </feature>
         </config-file>
-	
-	<source-file src="src/ios/LocalWebserver.h" />
-	<source-file src="src/ios/LocalWebserver.m" />
-	
-	<podspec name="GCDWebServer" spec="~> 3.5.4" />   
-	
-	<config-file target="*-Info.plist" parent="NSAppTransportSecurity">
-	    <dict>
-	        <key>NSAllowsArbitraryLoads</key>
-	        <true/>
-	        <key>NSExceptionDomains</key>
-	        <dict>
-	            <key>localhost</key>
-	            <dict>
-	                <key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
-	                <true/>
-	                <key>NSTemporaryExceptionMinimumTLSVersion</key>
-	                <string>TLSv1.0</string>
-	            </dict>
-	        </dict>
-	    </dict>
-	</config-file>
-	
-	<config-file target="*-Info.plist" parent="NSLocalNetworkUsageDescription">
-	    <string>This app needs local network access for communication.</string>
-	</config-file>
-	
-	<config-file target="*-Info.plist" parent="NSBonjourServices">
-	    <array>
-	        <string>_http._tcp</string>
-	    </array>
-	</config-file>
-	    
+		<source-file src="src/ios/LocalWebserver.h" />
+		<source-file src="src/ios/LocalWebserver.m" />
     </platform>
 </plugin>
